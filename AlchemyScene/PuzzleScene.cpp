@@ -29,6 +29,10 @@ bool PuzzleScene::init() {
 	//画面のサイズを取得
 	auto view = Director::getInstance()->getOpenGLView();
 	auto size = view->getFrameSize();
+    
+    
+    //保存してあるデータの取得
+    auto savedata = CCUserDefault::getInstance();
 	
 	
 	//各種ステータスの初期化
@@ -64,7 +68,7 @@ bool PuzzleScene::init() {
 	this->addChild(headerTarget);
 	
 	//	今回のクエスト
-	auto QuestView = Sprite::create("AlchemyImg/Header/QuestChar/quest_H2O.png");
+	auto QuestView = Sprite::create(QuestList::getconditionImageName(savedata->getIntegerForKey("QuestConditionKey", 0)));
 	QuestView->setPosition(header->getPosition());
 	this->addChild(QuestView);
 	
@@ -108,8 +112,6 @@ bool PuzzleScene::init() {
 	
 	
 	//パーティホムンの初期化　　userDefault（？）で、もってくればいいか？
-    
-    auto savedata = CCUserDefault::getInstance();
         
 	partyHomun[0] = savedata->getIntegerForKey("PartyHomun_0");
 	partyHomun[1] = savedata->getIntegerForKey("PartyHomun_1");
@@ -154,9 +156,9 @@ bool PuzzleScene::init() {
 	
 	
 	//条件の表示
-	condition = 20;
-	conditionType = HOMUN_H2O;
-	
+	condition = QuestList::getcondition(savedata->getIntegerForKey("QuestConditionKey"));
+	conditionType = QuestList::getconditionType(savedata->getIntegerForKey("QuestConditionKey"));
+	CCLOG("condi:%d",conditionType);
 	conditionLabel = LabelTTF::create("", "fonts/mplus-2p-heavy.ttf", int(size.height/12));
 	conditionLabel->setPosition(Point(header->getContentSize().width / 4 * 3,
 									  header->getPosition().y - (header->getContentSize().height / 5)));
@@ -172,7 +174,7 @@ bool PuzzleScene::init() {
 	
 	//初期タイマーのセット
 	timeswitch = true;
-	nowTime = 300;			//秒
+	nowTime = 120;			//秒
     
     for(int i=0;i<homuns;i++){
         nowSkillEffectTime[i] = 0;
@@ -188,7 +190,10 @@ bool PuzzleScene::init() {
 	this->getEventDispatcher()->addEventListenerWithSceneGraphPriority(listener, this);
 	
     
-    
+	//	セーブデータから次のクリア時のシーンを判定
+	sceneChangeCount = savedata->getIntegerForKey("ClearSceneKey");
+	
+	
 	/////////
 	
 	this->scheduleUpdate();
@@ -410,9 +415,21 @@ void PuzzleScene::clearCheck(){
 		//ここにシーン遷移
 		log("Claer!!");
 		if (flag == 0) {
-			auto nextScene = HardScene::createScene();
-			auto pScene = TransitionSlideInT::create(1.5, nextScene);
-			Director::getInstance()->replaceScene(pScene);
+			switch(sceneChangeCount){
+				case 0:{
+					auto nextScene = TownScene2::createScene();
+					auto pScene = TransitionCrossFade::create(1.5, nextScene);
+					Director::getInstance()->replaceScene(pScene);
+					break;
+				}
+				case 1:{
+					auto nextScene = HardScene::createScene();
+					auto pScene = TransitionCrossFade::create(1.5, nextScene);
+					Director::getInstance()->replaceScene(pScene);
+					break;
+				}
+			}
+					
 			flag++;
 		}
 	}
@@ -424,7 +441,7 @@ void PuzzleScene::gameOverCheck(){
     if(nowTime < 0){
         log("GameOver");
 		auto nextScene = HardScene::createScene();
-		auto pScene = TransitionSlideInT::create(1.5, nextScene);
+		auto pScene = TransitionCrossFade::create(1.5, nextScene);
 		Director::getInstance()->replaceScene(pScene);
     }
 }
@@ -479,7 +496,7 @@ void PuzzleScene::atomGenerate(float delta){
 void PuzzleScene::groupDelete(){
 	auto pPattern = AtomData::GetDestroyPattern();
 	for(int group_i=0;group_i<atoms;group_i++){
-		for(int arra_i = 0;arra_i<8;arra_i++){
+		for(int arra_i = 0;arra_i<9;arra_i++){
 			int arra[] = {
 				*(pPattern + arra_i * 8),
 				*(pPattern + arra_i * 8 + 1),
